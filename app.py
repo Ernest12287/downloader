@@ -1,9 +1,15 @@
 import os
+import logging
+from typing import Optional
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import uvicorn
 from utils.downloader import SocialDownloader
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Configuration
 DEBUG = os.getenv("DEBUG", "false").lower() == "true"
@@ -15,6 +21,7 @@ app = FastAPI(
     version="1.0.0",
     debug=DEBUG
 )
+
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
