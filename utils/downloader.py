@@ -2,10 +2,12 @@ import asyncio
 import re
 from typing import Dict, Optional
 import logging
-from f2.apps.douyin import API as DouyinAPI
-from f2.apps.tiktok import API as TiktokAPI
-from f2.apps.twitter import API as TwitterAPI
-from f2.apps.weibo import API as WeiboAPI
+
+# Import F2 apps properly
+from f2.apps.douyin import DouyinCrawler
+from f2.apps.tiktok import TiktokCrawler
+from f2.apps.twitter import TwitterCrawler
+from f2.apps.weibo import WeiboCrawler
 
 logger = logging.getLogger(__name__)
 
@@ -23,11 +25,9 @@ class SocialDownloader:
         patterns = {
             'douyin': [
                 r'douyin\.com',
-                r'douyin\.com',
                 r'iesdouyin\.com'
             ],
             'tiktok': [
-                r'tiktok\.com',
                 r'tiktok\.com'
             ],
             'twitter': [
@@ -49,37 +49,39 @@ class SocialDownloader:
     async def _download_douyin(self, url: str) -> Dict:
         """Download from Douyin"""
         try:
-            video_info = await DouyinAPI.fetch_one_video(url)
-            
-            if not video_info or not hasattr(video_info, 'aweme_list') or not video_info.aweme_list:
-                raise Exception("No video found")
-            
-            aweme = video_info.aweme_list[0]
-            result = {
-                'platform': 'douyin',
-                'title': getattr(aweme, 'desc', 'No title'),
-                'author': getattr(aweme.author, 'nickname', 'Unknown'),
-                'author_id': getattr(aweme.author, 'unique_id', ''),
-                'video_url': None,
-                'cover_url': None,
-                'duration': getattr(aweme.video, 'duration', 0) if hasattr(aweme, 'video') else 0,
-                'created_at': getattr(aweme, 'create_time', 0)
-            }
-            
-            # Get video URL
-            if hasattr(aweme, 'video'):
-                video_addr = getattr(aweme.video, 'play_addr', None)
-                if video_addr and hasattr(video_addr, 'url_list') and video_addr.url_list:
-                    result['video_url'] = video_addr.url_list[0]
-            
-            # Get cover URL
-            if hasattr(aweme, 'video') and hasattr(aweme.video, 'cover'):
-                cover_urls = getattr(aweme.video.cover, 'url_list', [])
-                if cover_urls:
-                    result['cover_url'] = cover_urls[0]
-            
-            return result
-            
+            async with DouyinCrawler() as crawler:
+                # Get video info
+                video_info = await crawler.fetch_one_video(url)
+                
+                if not video_info:
+                    raise Exception("No video found")
+                
+                # Extract basic info
+                result = {
+                    'platform': 'douyin',
+                    'title': getattr(video_info, 'desc', 'No title'),
+                    'author': getattr(video_info.author, 'nickname', 'Unknown'),
+                    'author_id': getattr(video_info.author, 'unique_id', ''),
+                    'video_url': None,
+                    'cover_url': None,
+                }
+                
+                # Try to get video URL
+                if hasattr(video_info, 'video'):
+                    video_data = video_info.video
+                    if hasattr(video_data, 'play_addr'):
+                        play_addr = video_data.play_addr
+                        if hasattr(play_addr, 'url_list') and play_addr.url_list:
+                            result['video_url'] = play_addr.url_list[0]
+                
+                # Get cover URL
+                if hasattr(video_info, 'video') and hasattr(video_info.video, 'cover'):
+                    cover_data = video_info.video.cover
+                    if hasattr(cover_data, 'url_list') and cover_data.url_list:
+                        result['cover_url'] = cover_data.url_list[0]
+                
+                return result
+                
         except Exception as e:
             logger.error(f"Douyin download error: {str(e)}")
             raise Exception(f"Douyin download failed: {str(e)}")
@@ -87,29 +89,31 @@ class SocialDownloader:
     async def _download_tiktok(self, url: str) -> Dict:
         """Download from TikTok"""
         try:
-            video_info = await TiktokAPI.fetch_one_video(url)
-            
-            if not video_info or not hasattr(video_info, 'aweme_list') or not video_info.aweme_list:
-                raise Exception("No video found")
-            
-            aweme = video_info.aweme_list[0]
-            result = {
-                'platform': 'tiktok',
-                'title': getattr(aweme, 'desc', 'No title'),
-                'author': getattr(aweme.author, 'nickname', 'Unknown'),
-                'author_id': getattr(aweme.author, 'unique_id', ''),
-                'video_url': None,
-                'cover_url': None
-            }
-            
-            # Get video URL (TikTok structure might be different)
-            if hasattr(aweme, 'video'):
-                video_addr = getattr(aweme.video, 'play_addr', None)
-                if video_addr and hasattr(video_addr, 'url_list') and video_addr.url_list:
-                    result['video_url'] = video_addr.url_list[0]
-            
-            return result
-            
+            async with TiktokCrawler() as crawler:
+                video_info = await crawler.fetch_one_video(url)
+                
+                if not video_info:
+                    raise Exception("No video found")
+                
+                result = {
+                    'platform': 'tiktok',
+                    'title': getattr(video_info, 'desc', 'No title'),
+                    'author': getattr(video_info.author, 'nickname', 'Unknown'),
+                    'author_id': getattr(video_info.author, 'unique_id', ''),
+                    'video_url': None,
+                    'cover_url': None,
+                }
+                
+                # Get video URL
+                if hasattr(video_info, 'video'):
+                    video_data = video_info.video
+                    if hasattr(video_data, 'play_addr'):
+                        play_addr = video_data.play_addr
+                        if hasattr(play_addr, 'url_list') and play_addr.url_list:
+                            result['video_url'] = play_addr.url_list[0]
+                
+                return result
+                
         except Exception as e:
             logger.error(f"TikTok download error: {str(e)}")
             raise Exception(f"TikTok download failed: {str(e)}")
@@ -117,23 +121,23 @@ class SocialDownloader:
     async def _download_twitter(self, url: str) -> Dict:
         """Download from Twitter"""
         try:
-            tweet_info = await TwitterAPI.fetch_tweet_detail(url)
-            
-            if not tweet_info:
-                raise Exception("No tweet found")
-            
-            result = {
-                'platform': 'twitter',
-                'text': getattr(tweet_info, 'text', ''),
-                'author': getattr(tweet_info.user, 'screen_name', 'Unknown'),
-                'media_urls': []
-            }
-            
-            # Extract media URLs (implementation depends on Twitter API response)
-            # This is a simplified version
-            
-            return result
-            
+            async with TwitterCrawler() as crawler:
+                tweet_info = await crawler.fetch_tweet_detail(url)
+                
+                if not tweet_info:
+                    raise Exception("No tweet found")
+                
+                result = {
+                    'platform': 'twitter',
+                    'text': getattr(tweet_info, 'text', ''),
+                    'author': getattr(tweet_info.user, 'screen_name', 'Unknown'),
+                    'media_urls': []
+                }
+                
+                # Add media extraction logic here based on tweet_info structure
+                
+                return result
+                
         except Exception as e:
             logger.error(f"Twitter download error: {str(e)}")
             raise Exception(f"Twitter download failed: {str(e)}")
@@ -141,20 +145,21 @@ class SocialDownloader:
     async def _download_weibo(self, url: str) -> Dict:
         """Download from Weibo"""
         try:
-            weibo_info = await WeiboAPI.fetch_weibo_detail(url)
-            
-            if not weibo_info:
-                raise Exception("No weibo found")
-            
-            result = {
-                'platform': 'weibo',
-                'text': getattr(weibo_info, 'text', ''),
-                'author': getattr(weibo_info.user, 'screen_name', 'Unknown'),
-                'media_urls': []
-            }
-            
-            return result
-            
+            async with WeiboCrawler() as crawler:
+                weibo_info = await crawler.fetch_weibo_detail(url)
+                
+                if not weibo_info:
+                    raise Exception("No weibo found")
+                
+                result = {
+                    'platform': 'weibo',
+                    'text': getattr(weibo_info, 'text', ''),
+                    'author': getattr(weibo_info.user, 'screen_name', 'Unknown'),
+                    'media_urls': []
+                }
+                
+                return result
+                
         except Exception as e:
             logger.error(f"Weibo download error: {str(e)}")
             raise Exception(f"Weibo download failed: {str(e)}")
