@@ -5,7 +5,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import uvicorn
-from utils.downloader import SocialDownloader
+from utils.yt_dlp_downloader import SocialDownloader
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
