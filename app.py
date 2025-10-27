@@ -5,7 +5,8 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import uvicorn
-from utils.yt_dlp_downloader import SocialDownloader
+# FIX THIS LINE - use the correct import
+from utils.downloader import SocialDownloader  # NOT utils.yt_dlp_downloader
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -13,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 # Configuration
 DEBUG = os.getenv("DEBUG", "false").lower() == "true"
-PORT = int(os.getenv("PORT", 8000))  # Render provides PORT automatically
+PORT = int(os.getenv("PORT", 8000))
 
 app = FastAPI(
     title="Social Media Downloader API",

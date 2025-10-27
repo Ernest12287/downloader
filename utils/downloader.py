@@ -86,7 +86,7 @@ class SocialDownloader:
                 'duration': info.get('duration', 0),
                 'thumbnail': info.get('thumbnail'),
                 'view_count': info.get('view_count', 0),
-                'description': info.get('description', '')[:500],  # Limit description length
+                'description': info.get('description', '')[:500],
             }
             
         except Exception as e:
